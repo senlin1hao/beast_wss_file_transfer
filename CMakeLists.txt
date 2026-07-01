@@ -7,6 +7,10 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 add_compile_options(-Wall -Wextra -pthread)
 
+if (MINGW)
+    add_compile_options(-Wa,-mbig-obj)
+endif ()
+
 set(FILE_SERVER_DIR "server")
 set(FILE_CLIENT_DIR "client")
 
