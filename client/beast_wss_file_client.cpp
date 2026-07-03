@@ -130,7 +130,7 @@ int WssFileClient::download_file(string_view file_name)
         ws.close(websocket::close_code::normal);
         return -1;
     }
-    size_t file_size = std::stoul(std::regex_replace(response, valid_response, "$2"));
+    size_t file_size = std::stoull(std::regex_replace(response, valid_response, "$2"));
 
     std::filesystem::path file_path(DOWNLOAD_DIR);
     file_path.append(file_name);
