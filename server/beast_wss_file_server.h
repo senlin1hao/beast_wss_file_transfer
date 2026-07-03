@@ -28,7 +28,7 @@ using std::shared_ptr;
 namespace wss_file_server
 {
     constexpr int64_t NETWORK_TIMEOUT = 10; // seconds
-    constexpr size_t FILE_BUFFER_SIZE = 4096;
+    constexpr size_t FILE_BUFFER_SIZE = 32 * 1024;
     constexpr size_t MAX_LOG_SIZE = 5 * 1024 * 1024;
     constexpr size_t MAX_LOG_COUNT = 3;
     constexpr size_t SESSION_LOG_QUEUE_SIZE = 8192;
