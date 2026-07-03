@@ -35,7 +35,8 @@ WssFileClient::WssFileClient(const char* host, uint16_t port, const char* cert_f
         auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
         auto file_sink = std::make_shared<spdlog::sinks::rotating_file_sink_mt>(CLIENT_LOG_PATH, wss_file_client::MAX_LOG_SIZE, wss_file_client::MAX_LOG_COUNT);
         vector<spdlog::sink_ptr> sinks = {console_sink, file_sink};
-        logger = std::make_shared<spdlog::logger>("wss_file_server", sinks.begin(), sinks.end());
+        logger = std::make_shared<spdlog::logger>("wss_file_client", sinks.begin(), sinks.end());
+        spdlog::register_logger(logger);
     }
 
     ssl_context.set_options(ssl::context::default_workarounds | ssl::context::no_sslv2 | ssl::context::no_sslv3 | ssl::context::no_tlsv1 | ssl::context::no_tlsv1_1 | ssl::context::single_dh_use);
