@@ -1,6 +1,4 @@
 build
 .vscode
-*.cnf
-*.crt
-*.key
+*/certificate/*
 beast_wss_file_transfer_install

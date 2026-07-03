@@ -2,7 +2,7 @@
 
 #include "beast_wss_file_client.h"
 
-const char* CERT_FILE = "./certificate/test_crt.crt";
+const char* CERT_FILE = "./certificate/fullchain.pem";
 
 int main(int argc, char* argv[])
 {

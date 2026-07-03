@@ -1,7 +1,7 @@
 #include "beast_wss_file_server.h"
 
-const char* CERT_FILE = "./certificate/test_crt.crt";
-const char* CERT_KEY_FILE = "./certificate/test_crt.key";
+const char* CERT_FILE = "./certificate/fullchain.pem";
+const char* CERT_KEY_FILE = "./certificate/privkey.pem";
 
 int main()
 {
