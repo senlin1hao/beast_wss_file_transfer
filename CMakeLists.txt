@@ -16,7 +16,7 @@ set(FILE_CLIENT_DIR "client")
 
 find_package(Boost REQUIRED CONFIG COMPONENTS locale)
 find_package(OpenSSL REQUIRED)
-set(SPDLOG_INCLUDE_DIR $ENV{SPDLOG_INCLUDE_DIR})
+find_package(spdlog REQUIRED)
 
 include_directories(
     ${Boost_INCLUDE_DIRS}
@@ -44,6 +44,7 @@ target_link_libraries(beast_wss_file_server
     OpenSSL::Crypto
     ws2_32
     mswsock
+    spdlog::spdlog
 )
 
 target_link_libraries(beast_wss_file_client
@@ -52,6 +53,7 @@ target_link_libraries(beast_wss_file_client
     OpenSSL::Crypto
     ws2_32
     mswsock
+    spdlog::spdlog
 )
 
 set(EXECUTABLE_OUTPUT_PATH ${CMAKE_BINARY_DIR}/bin)
