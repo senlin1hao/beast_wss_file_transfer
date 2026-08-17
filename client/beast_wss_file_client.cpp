@@ -20,6 +20,7 @@ using std::ofstream;
 using std::string;
 using std::vector;
 using std::shared_ptr;
+using nlohmann::json;
 
 const char* DOWNLOAD_DIR = "./download";
 const char* CLIENT_LOG_PATH = "./log/wss_file_client.log";
@@ -107,31 +108,39 @@ int WssFileClient::download_file(string_view file_name)
         return -1;
     }
 
-    string request = "FILE: ";
-    request += file_name;
-    ws.write(net::buffer(request));
+    FileRequest request;
+    request.file_name = file_name;
+    json request_json = request;
+    ws.write(net::buffer(request_json.dump()));
 
     beast::flat_buffer net_buffer;
     ws.read(net_buffer);
-    string response = beast::buffers_to_string(net_buffer.data());
-    net_buffer.consume(net_buffer.size());
 
-    std::regex valid_response("FILE: (.*) SIZE: (\\d+)");
-    if (!std::regex_match(response, valid_response))
+    json response_json;
+    FileSizeResponse file_size_response;
+    try
     {
-        logger->error("response error: {}", response);
+        std::string_view sv(static_cast<const char*>(net_buffer.data().data()), net_buffer.data().size());
+        response_json = json::parse(sv);
+        net_buffer.consume(net_buffer.size());
+        file_size_response = response_json.get<FileSizeResponse>();
+    }
+    catch(const json::exception& e)
+    {
+        logger->error("response json deserialize error: {}", e.what());
+
         return -1;
     }
 
-    logger->info("response: {}", response);
-    string file_name_received = std::regex_replace(response, valid_response, "$1");
+    logger->info("response: {}", response_json.dump());
+    string file_name_received = file_size_response.file_name;
     if (file_name_received != file_name)
     {
         logger->error("file name error: {}", file_name_received);
         ws.close(websocket::close_code::normal);
         return -1;
     }
-    size_t file_size = std::stoull(std::regex_replace(response, valid_response, "$2"));
+    size_t file_size = file_size_response.size;
 
     std::filesystem::path file_path(DOWNLOAD_DIR);
     file_path.append(file_name);
@@ -155,7 +164,7 @@ int WssFileClient::download_file(string_view file_name)
 
     ws.binary(false);
     ws.read(net_buffer);
-    response = beast::buffers_to_string(net_buffer.data());
+    string response = beast::buffers_to_string(net_buffer.data());
     net_buffer.consume(net_buffer.size());
     if (response != "FILE END")
     {

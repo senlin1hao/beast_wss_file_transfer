@@ -12,6 +12,7 @@
 #include <boost/beast/ssl.hpp>
 #include <spdlog/spdlog.h>
 #include <spdlog/async.h>
+#include <nlohmann/json.hpp>
 
 namespace beast = boost::beast;
 namespace websocket = beast::websocket;
@@ -34,6 +35,21 @@ namespace wss_file_server
     constexpr size_t SESSION_LOG_QUEUE_SIZE = 8192;
     constexpr size_t SESSION_LOG_THREAD_COUNT = 1;
 }
+
+struct FileRequest
+{
+    string file_name;
+
+    NLOHMANN_DEFINE_TYPE_INTRUSIVE(FileRequest, file_name);
+};
+
+struct FileSizeResponse
+{
+    string file_name;
+    size_t size;
+
+    NLOHMANN_DEFINE_TYPE_INTRUSIVE(FileSizeResponse, file_name, size);
+};
 
 class WssFileServerSession : public std::enable_shared_from_this<WssFileServerSession>
 {

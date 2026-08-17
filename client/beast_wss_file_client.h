@@ -11,6 +11,7 @@
 #include <boost/beast.hpp>
 #include <boost/beast/ssl.hpp>
 #include <spdlog/spdlog.h>
+#include <nlohmann/json.hpp>
 
 namespace beast = boost::beast;
 namespace websocket = beast::websocket;
@@ -28,6 +29,21 @@ namespace wss_file_client
     constexpr size_t MAX_LOG_SIZE = 5 * 1024 * 1024;
     constexpr size_t MAX_LOG_COUNT = 3;
 }
+
+struct FileRequest
+{
+    string file_name;
+
+    NLOHMANN_DEFINE_TYPE_INTRUSIVE(FileRequest, file_name);
+};
+
+struct FileSizeResponse
+{
+    string file_name;
+    size_t size;
+
+    NLOHMANN_DEFINE_TYPE_INTRUSIVE(FileSizeResponse, file_name, size);
+};
 
 class WssFileClient
 {

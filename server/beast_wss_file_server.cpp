@@ -21,6 +21,7 @@ using std::string;
 using std::thread;
 using std::vector;
 using std::shared_ptr;
+using json = nlohmann::json;
 
 const char* FILE_DIR = "./files";
 const char* SERVER_LOG_PATH = "./log/wss_file_server.log";
@@ -63,28 +64,22 @@ void WssFileServerSession::on_websocket_accept()
 
 void WssFileServerSession::on_read_request()
 {
-    string request = beast::buffers_to_string(net_buffer.data());
-    logger->info("request: {}", request);
-    net_buffer.consume(net_buffer.size());
-
-    if ((request.size() < 6) || (request.substr(0, 6) != "FILE: "))
+    json request_json;
+    try
     {
-        ws.next_layer().next_layer().expires_after(std::chrono::seconds(wss_file_server::NETWORK_TIMEOUT));
-        std::shared_ptr<string> response = std::make_shared<string>("INVALID REQUEST");
-        ws.async_write(net::buffer(*response), [self = shared_from_this()](beast::error_code ec, size_t) {
-            if (ec)
-            {
-                logger->error("write error: {}", boost::locale::conv::between(ec.message(), "UTF-8", "GBK"));
-                return;
-            }
+        std::string_view sv(static_cast<const char*>(net_buffer.data().data()), net_buffer.data().size());
+        request_json = json::parse(sv);
+        net_buffer.consume(net_buffer.size());
 
-            self->session_close();
-        });
+        logger->info("request: {}", request_json.dump());
+        file_name = request_json.get<FileRequest>().file_name;
+    }
+    catch (const json::exception& e)
+    {
+        logger->error("request json deserialize error: {}", e.what());
 
         return;
     }
-
-    file_name = request.substr(6);
 
     if (!is_save_path(file_name))
     {
@@ -147,8 +142,12 @@ void WssFileServerSession::send_file()
     file.seekg(0, file.beg);
 
     ws.next_layer().next_layer().expires_after(std::chrono::seconds(wss_file_server::NETWORK_TIMEOUT));
-    std::shared_ptr<string> response = std::make_shared<string>("FILE: " + file_name + " SIZE: " + std::to_string(file_size));
-    ws.async_write(net::buffer(*response), [self = shared_from_this(), file_size](beast::error_code ec, size_t) {
+    FileSizeResponse response;
+    response.file_name = file_name;
+    response.size = file_size;
+    json response_json = response;
+    std::shared_ptr<string> response_str = std::make_shared<string>(response_json.dump());
+    ws.async_write(net::buffer(*response_str), [self = shared_from_this(), file_size](beast::error_code ec, size_t) {
         if (ec)
         {
             logger->error("write error: {}", boost::locale::conv::between(ec.message(), "UTF-8", "GBK"));

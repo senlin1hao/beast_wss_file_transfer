@@ -17,6 +17,7 @@ set(FILE_CLIENT_DIR "client")
 find_package(Boost REQUIRED CONFIG COMPONENTS locale)
 find_package(OpenSSL REQUIRED)
 find_package(spdlog REQUIRED)
+find_package(nlohmann_json REQUIRED)
 
 include_directories(
     ${Boost_INCLUDE_DIRS}
@@ -45,6 +46,7 @@ target_link_libraries(beast_wss_file_server
     ws2_32
     mswsock
     spdlog::spdlog
+    nlohmann_json::nlohmann_json
 )
 
 target_link_libraries(beast_wss_file_client
@@ -54,6 +56,7 @@ target_link_libraries(beast_wss_file_client
     ws2_32
     mswsock
     spdlog::spdlog
+    nlohmann_json::nlohmann_json
 )
 
 set(EXECUTABLE_OUTPUT_PATH ${CMAKE_BINARY_DIR}/bin)
