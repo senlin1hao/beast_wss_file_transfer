@@ -78,14 +78,38 @@ void WssFileServerSession::on_read_request()
     {
         logger->error("request json deserialize error: {}", e.what());
 
+        FileSizeResponse response;
+        response.code = wss_file_server::FILE_SIZE_RESPONSE_CODE::DESERIALIZE_ERROR;
+        response.file_name = "";
+        response.size = 0;
+        json response_json = response;
+        ws.next_layer().next_layer().expires_after(std::chrono::seconds(wss_file_server::NETWORK_TIMEOUT));
+        std::shared_ptr<string> response_str = std::make_shared<string>(response_json.dump());
+        ws.async_write(net::buffer(*response_str), [self = shared_from_this()](beast::error_code ec, size_t) {
+            if (ec)
+            {
+                logger->error("write error: {}", boost::locale::conv::between(ec.message(), "UTF-8", "GBK"));
+                return;
+            }
+
+            self->session_close();
+        });
+
         return;
     }
 
     if (!is_save_path(file_name))
     {
+        logger->error("request file path is invalid: {}", file_name);
+
+        FileSizeResponse response;
+        response.code = wss_file_server::FILE_SIZE_RESPONSE_CODE::FILE_NOT_FOUND;
+        response.file_name = file_name;
+        response.size = 0;
+        json response_json = response;
         ws.next_layer().next_layer().expires_after(std::chrono::seconds(wss_file_server::NETWORK_TIMEOUT));
-        std::shared_ptr<string> response = std::make_shared<string>("FILE NOT FOUND");
-        ws.async_write(net::buffer(*response), [self = shared_from_this()](beast::error_code ec, size_t) {
+        std::shared_ptr<string> response_str = std::make_shared<string>(response_json.dump());
+        ws.async_write(net::buffer(*response_str), [self = shared_from_this()](beast::error_code ec, size_t) {
             if (ec)
             {
                 logger->error("write error: {}", boost::locale::conv::between(ec.message(), "UTF-8", "GBK"));
@@ -123,9 +147,15 @@ void WssFileServerSession::send_file()
     file.open(file_path.string(), std::ios::binary);
     if (!file.is_open())
     {
+        logger->error("open file error: {}", file_name);
+        FileSizeResponse response;
+        response.code = wss_file_server::FILE_SIZE_RESPONSE_CODE::FILE_NOT_FOUND;
+        response.file_name = file_name;
+        response.size = 0;
+        json response_json = response;
         ws.next_layer().next_layer().expires_after(std::chrono::seconds(wss_file_server::NETWORK_TIMEOUT));
-        std::shared_ptr<string> response = std::make_shared<string>("SERVER FILE OPEN ERROR");
-        ws.async_write(net::buffer(*response), [self = shared_from_this()](beast::error_code ec, size_t) {
+        std::shared_ptr<string> response_str = std::make_shared<string>(response_json.dump());
+        ws.async_write(net::buffer(*response_str), [self = shared_from_this()](beast::error_code ec, size_t) {
             if (ec)
             {
                 logger->error("write error: {}", boost::locale::conv::between(ec.message(), "UTF-8", "GBK"));
@@ -143,6 +173,7 @@ void WssFileServerSession::send_file()
 
     ws.next_layer().next_layer().expires_after(std::chrono::seconds(wss_file_server::NETWORK_TIMEOUT));
     FileSizeResponse response;
+    response.code = wss_file_server::FILE_SIZE_RESPONSE_CODE::OK;
     response.file_name = file_name;
     response.size = file_size;
     json response_json = response;

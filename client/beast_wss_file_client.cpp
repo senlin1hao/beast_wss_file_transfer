@@ -116,19 +116,29 @@ int WssFileClient::download_file(string_view file_name)
     beast::flat_buffer net_buffer;
     ws.read(net_buffer);
 
+    std::string_view response_sv;
     json response_json;
     FileSizeResponse file_size_response;
     try
     {
-        std::string_view sv(static_cast<const char*>(net_buffer.data().data()), net_buffer.data().size());
-        response_json = json::parse(sv);
+        response_sv = std::string_view(static_cast<const char*>(net_buffer.data().data()), net_buffer.data().size());
+        response_json = json::parse(response_sv);
         net_buffer.consume(net_buffer.size());
         file_size_response = response_json.get<FileSizeResponse>();
     }
-    catch(const json::exception& e)
+    catch (const json::exception& e)
     {
-        logger->error("response json deserialize error: {}", e.what());
+        logger->error("response json deserialize error: {}, response: {}", e.what(), response_sv);
 
+        ws.close(websocket::close_code::normal);
+        return -1;
+    }
+
+    if (file_size_response.code != wss_file_client::FILE_SIZE_RESPONSE_CODE::OK)
+    {
+        logger->error("file size response error: {}", file_size_response.code);
+
+        ws.close(websocket::close_code::normal);
         return -1;
     }
 
@@ -149,6 +159,8 @@ int WssFileClient::download_file(string_view file_name)
     if (!file.is_open())
     {
         logger->error("open file error: {}", file_path.string());
+
+        ws.close(websocket::close_code::normal);
         return -1;
     }
 
@@ -169,6 +181,8 @@ int WssFileClient::download_file(string_view file_name)
     if (response != "FILE END")
     {
         logger->error("response error: {}", response);
+
+        ws.close(websocket::close_code::normal);
         return -1;
     }
 
@@ -183,8 +197,8 @@ int WssFileClient::disconnect()
 {
     if (!connected)
     {
-        logger->error("not connected");
-        return -1;
+        logger->info("not connected");
+        return 0;
     }
 
     ws.close(websocket::close_code::normal);

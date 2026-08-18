@@ -34,6 +34,13 @@ namespace wss_file_server
     constexpr size_t MAX_LOG_COUNT = 3;
     constexpr size_t SESSION_LOG_QUEUE_SIZE = 8192;
     constexpr size_t SESSION_LOG_THREAD_COUNT = 1;
+
+    enum FILE_SIZE_RESPONSE_CODE
+    {
+        OK = 0,
+        DESERIALIZE_ERROR = -1,
+        FILE_NOT_FOUND = -2
+    };
 }
 
 struct FileRequest
@@ -45,10 +52,11 @@ struct FileRequest
 
 struct FileSizeResponse
 {
+    int code;
     string file_name;
     size_t size;
 
-    NLOHMANN_DEFINE_TYPE_INTRUSIVE(FileSizeResponse, file_name, size);
+    NLOHMANN_DEFINE_TYPE_INTRUSIVE(FileSizeResponse, code, file_name, size);
 };
 
 class WssFileServerSession : public std::enable_shared_from_this<WssFileServerSession>

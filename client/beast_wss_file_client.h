@@ -28,6 +28,13 @@ namespace wss_file_client
 {
     constexpr size_t MAX_LOG_SIZE = 5 * 1024 * 1024;
     constexpr size_t MAX_LOG_COUNT = 3;
+
+    enum FILE_SIZE_RESPONSE_CODE
+    {
+        OK = 0,
+        DESERIALIZE_ERROR = -1,
+        FILE_NOT_FOUND = -2
+    };
 }
 
 struct FileRequest
@@ -39,10 +46,11 @@ struct FileRequest
 
 struct FileSizeResponse
 {
+    int code;
     string file_name;
     size_t size;
 
-    NLOHMANN_DEFINE_TYPE_INTRUSIVE(FileSizeResponse, file_name, size);
+    NLOHMANN_DEFINE_TYPE_INTRUSIVE(FileSizeResponse, code, file_name, size);
 };
 
 class WssFileClient
