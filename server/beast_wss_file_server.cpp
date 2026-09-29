@@ -126,17 +126,52 @@ void WssFileServerSession::on_read_request()
 
 bool WssFileServerSession::is_save_path(const string& path)
 {
-    std::filesystem::path request_path(FILE_DIR);
-    request_path.append(path);
-    request_path.lexically_normal();
+    if (path.empty())
+    {
+        return false;
+    }
 
-    std::filesystem::path save_path(FILE_DIR);
-    save_path.lexically_normal();
+    std::filesystem::path request_path(path);
 
-    std::filesystem::path relative_path = std::filesystem::relative(request_path, save_path);
-    string relative_path_str = relative_path.string();
+    // 拒绝绝对路径、盘符路径以及以根目录分隔符开头的路径，同时拒绝 NTFS 备用数据流（如 "test.txt:stream"）
+    if (request_path.has_root_name() || request_path.has_root_directory() || (path.find(':') != string::npos))
+    {
+        return false;
+    }
 
-    return ((!relative_path_str.empty()) && (relative_path_str.find("..") == string::npos));
+    std::error_code ec;
+
+    // 规范化 FILE_DIR（会解析已存在部分的软链接），失败则拒绝请求
+    std::filesystem::path save_path = std::filesystem::weakly_canonical(std::filesystem::path(FILE_DIR), ec);
+    if (ec)
+    {
+        return false;
+    }
+
+    // 归一化请求路径
+    std::filesystem::path target_path = (save_path / request_path).lexically_normal();
+
+    // 归一化后必须仍位于 FILE_DIR 之内：相对路径非空、不是当前目录，且首段不是 ".."
+    std::filesystem::path relative_path = target_path.lexically_relative(save_path);
+    if (relative_path.empty() || (relative_path == ".") || (*relative_path.begin() == ".."))
+    {
+        return false;
+    }
+
+    // 再解析一次软链接，防止在 FILE_DIR 内通过软链接逃逸到目录之外
+    std::filesystem::path canonical_path = std::filesystem::weakly_canonical(target_path, ec);
+    if (ec)
+    {
+        return false;
+    }
+
+    std::filesystem::path canonical_relative = canonical_path.lexically_relative(save_path);
+    if (canonical_relative.empty() || (canonical_relative == ".") || (*canonical_relative.begin() == ".."))
+    {
+        return false;
+    }
+
+    return true;
 }
 
 void WssFileServerSession::send_file()
