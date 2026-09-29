@@ -70,7 +70,12 @@ int WssFileClient::connect()
     beast::error_code ec;
 
     tcp::resolver resolver(net_context);
-    const auto results = resolver.resolve(host, std::to_string(port));
+    const auto results = resolver.resolve(host, std::to_string(port), ec);
+    if (ec)
+    {
+        logger->error("resolve error: {}", boost::locale::conv::between(ec.message(), "UTF-8", "GBK"));
+        return -1;
+    }
 
     ws.next_layer().next_layer().connect(results, ec);
     if (ec)
@@ -108,13 +113,27 @@ int WssFileClient::download_file(string_view file_name)
         return -1;
     }
 
+    beast::error_code ec;
+
     FileRequest request;
     request.file_name = file_name;
     json request_json = request;
-    ws.write(net::buffer(request_json.dump()));
+    ws.write(net::buffer(request_json.dump()), ec);
+    if (ec)
+    {
+        logger->error("write request error: {}", boost::locale::conv::between(ec.message(), "UTF-8", "GBK"));
+        disconnect();
+        return -1;
+    }
 
     beast::flat_buffer net_buffer;
-    ws.read(net_buffer);
+    ws.read(net_buffer, ec);
+    if (ec)
+    {
+        logger->error("read response error: {}", boost::locale::conv::between(ec.message(), "UTF-8", "GBK"));
+        disconnect();
+        return -1;
+    }
 
     std::string_view response_sv;
     json response_json;
@@ -168,14 +187,26 @@ int WssFileClient::download_file(string_view file_name)
     size_t received_size = 0;
     while (received_size < file_size)
     {
-        ws.read(net_buffer);
+        ws.read(net_buffer, ec);
+        if (ec)
+        {
+            logger->error("read file data error: {}", boost::locale::conv::between(ec.message(), "UTF-8", "GBK"));
+            disconnect();
+            return -1;
+        }
         file.write(static_cast<const char*>(net_buffer.data().data()), net_buffer.size());
         received_size += net_buffer.size();
         net_buffer.consume(net_buffer.size());
     }
 
     ws.binary(false);
-    ws.read(net_buffer);
+    ws.read(net_buffer, ec);
+    if (ec)
+    {
+        logger->error("read file end error: {}", boost::locale::conv::between(ec.message(), "UTF-8", "GBK"));
+        disconnect();
+        return -1;
+    }
     string response = beast::buffers_to_string(net_buffer.data());
     net_buffer.consume(net_buffer.size());
     if (response != "FILE END")
