@@ -204,7 +204,14 @@ void WssFileServerSession::send_file()
     }
 
     file.seekg(0, file.end);
-    size_t file_size = file.tellg();
+    const std::streamoff file_size_offset = file.tellg();
+    if (file_size_offset < 0)
+    {
+        logger->error("get file size error: {}", file_name);
+        session_close();
+        return;
+    }
+    size_t file_size = static_cast<size_t>(file_size_offset);
     file.seekg(0, file.beg);
 
     ws.next_layer().next_layer().expires_after(std::chrono::seconds(wss_file_server::NETWORK_TIMEOUT));
