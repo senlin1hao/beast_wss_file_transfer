@@ -1,6 +1,7 @@
 #include <cstdlib>
 #include <thread>
 #include <cstdint>
+#include <mutex>
 #include <filesystem>
 
 #include <boost/locale.hpp>
@@ -299,14 +300,14 @@ void WssFileServerSession::session_close()
 WssFileServerSession::WssFileServerSession(tcp::socket&& socket, ssl::context& ctx)
     : ws(std::move(socket), ctx), file_buffer(wss_file_server::FILE_BUFFER_SIZE)
 {
-    if (logger == nullptr)
-    {
+    static std::once_flag logger_once;
+    std::call_once(logger_once, []() {
         auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
         auto file_sink = std::make_shared<spdlog::sinks::rotating_file_sink_mt>(SERVER_SESSION_LOG_PATH, wss_file_server::MAX_LOG_SIZE, wss_file_server::MAX_LOG_COUNT);
         vector<spdlog::sink_ptr> sinks = {console_sink, file_sink};
         logger = std::make_shared<spdlog::async_logger>("wss_file_server_session", sinks.begin(), sinks.end(), spdlog::thread_pool(), spdlog::async_overflow_policy::block);
         spdlog::register_logger(logger);
-    }
+    });
 }
 
 void WssFileServerSession::run()
