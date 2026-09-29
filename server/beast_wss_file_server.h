@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <cstddef>
 #include <memory>
+#include <thread>
 #include <functional>
 
 #include <boost/asio.hpp>
@@ -88,14 +89,17 @@ private:
     boost::asio::ip::tcp::endpoint endpoint;
     boost::asio::ssl::context ssl_context;
     boost::asio::ip::tcp::acceptor acceptor;
+    std::vector<std::thread> threads;
     static std::shared_ptr<spdlog::logger> logger;
 
     void run();
 
 public:
     WssFileServer(const char* ip, uint16_t port, size_t thread_num, const char* cert_file, const char* cert_key_file);
+    ~WssFileServer();
 
     void start();
+    void join();
 };
 
 #endif /* _BEAST_WSS_FILE_SERVER_H_INCLUDED_ */

@@ -13,6 +13,7 @@ int main()
 
     WssFileServer server("::", 34094, 4, CERT_FILE, CERT_KEY_FILE);
     server.start();
+    server.join();
 
     return 0;
 }

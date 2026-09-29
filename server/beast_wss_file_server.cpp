@@ -383,7 +383,7 @@ void WssFileServer::run()
 
 WssFileServer::WssFileServer(const char* ip, uint16_t port, size_t thread_num, const char* cert_file, const char* cert_key_file)
     : running(false), thread_num(thread_num), net_context(thread_num), endpoint(net::ip::make_address(ip), port),
-      ssl_context(ssl::context::tls_server), acceptor(net_context)
+      ssl_context(ssl::context::tls_server), acceptor(net_context), threads(thread_num)
 {
     if (logger == nullptr)
     {
@@ -426,20 +426,34 @@ WssFileServer::WssFileServer(const char* ip, uint16_t port, size_t thread_num, c
     }
 }
 
+WssFileServer::~WssFileServer()
+{
+    beast::error_code ec;
+    acceptor.close(ec);
+    net_context.stop();
+
+    join();
+}
+
 void WssFileServer::start()
 {
     running = true;
     run();
 
-    vector<thread> threads(thread_num);
     for (auto& i : threads)
     {
         i = thread([this]() { net_context.run(); });
     }
+}
 
+void WssFileServer::join()
+{
     for (auto& i : threads)
     {
-        i.join();
+        if (i.joinable())
+        {
+            i.join();
+        }
     }
 
     running = false;
