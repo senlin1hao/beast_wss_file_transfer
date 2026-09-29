@@ -230,6 +230,21 @@ void WssFileServerSession::send_next_block(size_t file_size, size_t sent_size)
     file.read(file_buffer.data(), file_buffer.size());
     size_t read_size = file.gcount();
 
+    if (read_size == 0)
+    {
+        if (sent_size < file_size)
+        {
+            logger->error("read file error or file truncated, file: {}, sent: {} / {}", file_name, sent_size, file_size);
+            session_close();
+        }
+        else
+        {
+            ws.binary(false);
+            send_file_end();
+        }
+        return;
+    }
+
     ws.next_layer().next_layer().expires_after(std::chrono::seconds(wss_file_server::NETWORK_TIMEOUT));
     ws.async_write(net::buffer(file_buffer.data(), read_size), [self = shared_from_this(), sent_size, read_size, file_size](beast::error_code ec, size_t) {
         if (ec)
