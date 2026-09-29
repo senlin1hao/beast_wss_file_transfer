@@ -5,6 +5,7 @@
 #include <vector>
 #include <fstream>
 #include <cstdint>
+#include <functional>
 
 #include <boost/asio.hpp>
 #include <boost/asio/ssl.hpp>
@@ -77,6 +78,8 @@ private:
     void send_next_block(size_t file_size, size_t sent_size);
     void send_file_end();
     void session_close();
+    void async_write_response(FileSizeResponse response, std::function<void()> on_written);
+    void send_error_response_and_close(int code, const string& name, size_t size);
 
 public:
     WssFileServerSession(tcp::socket&& socket, ssl::context& ctx);
