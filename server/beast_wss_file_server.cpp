@@ -311,7 +311,7 @@ bool WssFileServerSession::compute_file_sha256(std::string& digest)
     return true;
 }
 
-void WssFileServerSession::async_write_response(FileResponse response, std::function<void()> on_written)
+void WssFileServerSession::async_write_response(const FileResponse& response, std::function<void()> on_written)
 {
     json response_json = response;
     ws.next_layer().next_layer().expires_after(std::chrono::seconds(wss_file_server::NETWORK_TIMEOUT));

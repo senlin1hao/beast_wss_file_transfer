@@ -71,7 +71,7 @@ private:
     void send_file_end();
     void session_close();
     bool compute_file_sha256(std::string& digest);
-    void async_write_response(FileResponse response, std::function<void()> on_written);
+    void async_write_response(const FileResponse& response, std::function<void()> on_written);
     void send_error_response_and_close(int code, const std::string& name, size_t size);
 
 public:
