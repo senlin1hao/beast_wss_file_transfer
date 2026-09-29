@@ -85,7 +85,7 @@ void WssFileServerSession::on_read_request()
         json response_json = response;
         ws.next_layer().next_layer().expires_after(std::chrono::seconds(wss_file_server::NETWORK_TIMEOUT));
         std::shared_ptr<string> response_str = std::make_shared<string>(response_json.dump());
-        ws.async_write(net::buffer(*response_str), [self = shared_from_this()](beast::error_code ec, size_t) {
+        ws.async_write(net::buffer(*response_str), [self = shared_from_this(), response_str](beast::error_code ec, size_t) {
             if (ec)
             {
                 logger->error("write error: {}", boost::locale::conv::between(ec.message(), "UTF-8", "GBK"));
@@ -109,7 +109,7 @@ void WssFileServerSession::on_read_request()
         json response_json = response;
         ws.next_layer().next_layer().expires_after(std::chrono::seconds(wss_file_server::NETWORK_TIMEOUT));
         std::shared_ptr<string> response_str = std::make_shared<string>(response_json.dump());
-        ws.async_write(net::buffer(*response_str), [self = shared_from_this()](beast::error_code ec, size_t) {
+        ws.async_write(net::buffer(*response_str), [self = shared_from_this(), response_str](beast::error_code ec, size_t) {
             if (ec)
             {
                 logger->error("write error: {}", boost::locale::conv::between(ec.message(), "UTF-8", "GBK"));
@@ -155,7 +155,7 @@ void WssFileServerSession::send_file()
         json response_json = response;
         ws.next_layer().next_layer().expires_after(std::chrono::seconds(wss_file_server::NETWORK_TIMEOUT));
         std::shared_ptr<string> response_str = std::make_shared<string>(response_json.dump());
-        ws.async_write(net::buffer(*response_str), [self = shared_from_this()](beast::error_code ec, size_t) {
+        ws.async_write(net::buffer(*response_str), [self = shared_from_this(), response_str](beast::error_code ec, size_t) {
             if (ec)
             {
                 logger->error("write error: {}", boost::locale::conv::between(ec.message(), "UTF-8", "GBK"));
@@ -178,7 +178,7 @@ void WssFileServerSession::send_file()
     response.size = file_size;
     json response_json = response;
     std::shared_ptr<string> response_str = std::make_shared<string>(response_json.dump());
-    ws.async_write(net::buffer(*response_str), [self = shared_from_this(), file_size](beast::error_code ec, size_t) {
+    ws.async_write(net::buffer(*response_str), [self = shared_from_this(), response_str, file_size](beast::error_code ec, size_t) {
         if (ec)
         {
             logger->error("write error: {}", boost::locale::conv::between(ec.message(), "UTF-8", "GBK"));
@@ -220,7 +220,7 @@ void WssFileServerSession::send_file_end()
 
     ws.next_layer().next_layer().expires_after(std::chrono::seconds(wss_file_server::NETWORK_TIMEOUT));
     std::shared_ptr<string> response = std::make_shared<string>("FILE END");
-    ws.async_write(net::buffer(*response), [self = shared_from_this()](beast::error_code ec, size_t) {
+    ws.async_write(net::buffer(*response), [self = shared_from_this(), response](beast::error_code ec, size_t) {
         if (ec)
         {
             logger->error("write error: {}", boost::locale::conv::between(ec.message(), "UTF-8", "GBK"));
