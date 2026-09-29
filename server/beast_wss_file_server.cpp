@@ -336,6 +336,12 @@ void WssFileServer::run()
         if (ec)
         {
             logger->error("accept error: {}", boost::locale::conv::between(ec.message(), "UTF-8", "GBK"));
+
+            // 出错后继续接受新连接；acceptor 已关闭（如主动停止）时才不再重新注册
+            if (acceptor.is_open())
+            {
+                run();
+            }
             return;
         }
         std::make_shared<WssFileServerSession>(std::move(socket), ssl_context)->run();
