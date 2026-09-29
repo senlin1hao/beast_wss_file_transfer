@@ -130,7 +130,7 @@ int WssFileClient::download_file(string_view file_name)
     {
         logger->error("response json deserialize error: {}, response: {}", e.what(), response_sv);
 
-        ws.close(websocket::close_code::normal);
+        disconnect();
         return -1;
     }
 
@@ -138,7 +138,7 @@ int WssFileClient::download_file(string_view file_name)
     {
         logger->error("file size response error: {}", file_size_response.code);
 
-        ws.close(websocket::close_code::normal);
+        disconnect();
         return -1;
     }
 
@@ -147,7 +147,7 @@ int WssFileClient::download_file(string_view file_name)
     if (file_name_received != file_name)
     {
         logger->error("file name error: {}", file_name_received);
-        ws.close(websocket::close_code::normal);
+        disconnect();
         return -1;
     }
     size_t file_size = file_size_response.size;
@@ -160,7 +160,7 @@ int WssFileClient::download_file(string_view file_name)
     {
         logger->error("open file error: {}", file_path.string());
 
-        ws.close(websocket::close_code::normal);
+        disconnect();
         return -1;
     }
 
@@ -182,7 +182,7 @@ int WssFileClient::download_file(string_view file_name)
     {
         logger->error("response error: {}", response);
 
-        ws.close(websocket::close_code::normal);
+        disconnect();
         return -1;
     }
 
@@ -201,9 +201,14 @@ int WssFileClient::disconnect()
         return 0;
     }
 
-    ws.close(websocket::close_code::normal);
-
+    beast::error_code close_ec;
+    ws.close(websocket::close_code::normal, close_ec);
     connected = false;
+
+    if (close_ec && close_ec != websocket::error::closed)
+    {
+        logger->warn("close error: {}", boost::locale::conv::between(close_ec.message(), "UTF-8", "GBK"));
+    }
 
     return 0;
 }
