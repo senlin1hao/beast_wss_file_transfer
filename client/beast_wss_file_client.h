@@ -36,13 +36,14 @@ struct FileRequest
     NLOHMANN_DEFINE_TYPE_INTRUSIVE(FileRequest, file_name);
 };
 
-struct FileSizeResponse
+struct FileResponse
 {
     int code;
     std::string file_name;
     size_t size;
+    std::string sha256;
 
-    NLOHMANN_DEFINE_TYPE_INTRUSIVE(FileSizeResponse, code, file_name, size);
+    NLOHMANN_DEFINE_TYPE_INTRUSIVE(FileResponse, code, file_name, size, sha256);
 };
 
 class WssFileClient

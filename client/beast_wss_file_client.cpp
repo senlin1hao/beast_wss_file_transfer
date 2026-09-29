@@ -4,6 +4,8 @@
 #include <string>
 #include <vector>
 
+#include <openssl/evp.h>
+
 #include <boost/locale.hpp>
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <spdlog/sinks/rotating_file_sink.h>
@@ -138,13 +140,13 @@ int WssFileClient::download_file(string_view file_name)
 
     std::string_view response_sv;
     json response_json;
-    FileSizeResponse file_size_response;
+    FileResponse file_size_response;
     try
     {
         response_sv = std::string_view(static_cast<const char*>(net_buffer.data().data()), net_buffer.data().size());
         response_json = json::parse(response_sv);
         net_buffer.consume(net_buffer.size());
-        file_size_response = response_json.get<FileSizeResponse>();
+        file_size_response = response_json.get<FileResponse>();
     }
     catch (const json::exception& e)
     {
@@ -184,6 +186,15 @@ int WssFileClient::download_file(string_view file_name)
         return -1;
     }
 
+    // 边下载边计算 sha256，用于完整性校验
+    std::unique_ptr<EVP_MD_CTX, decltype(&EVP_MD_CTX_free)> md_ctx(EVP_MD_CTX_new(), &EVP_MD_CTX_free);
+    if (!md_ctx || (EVP_DigestInit_ex(md_ctx.get(), EVP_sha256(), nullptr) != 1))
+    {
+        logger->error("init sha256 error");
+        disconnect();
+        return -1;
+    }
+
     ws.binary(true);
     size_t received_size = 0;
     while (received_size < file_size)
@@ -192,6 +203,12 @@ int WssFileClient::download_file(string_view file_name)
         if (ec)
         {
             logger->error("read file data error: {}", boost::locale::conv::between(ec.message(), "UTF-8", "GBK"));
+            disconnect();
+            return -1;
+        }
+        if (EVP_DigestUpdate(md_ctx.get(), net_buffer.data().data(), net_buffer.size()) != 1)
+        {
+            logger->error("update sha256 error");
             disconnect();
             return -1;
         }
@@ -219,6 +236,32 @@ int WssFileClient::download_file(string_view file_name)
     }
 
     file.close();
+
+    unsigned char hash[EVP_MAX_MD_SIZE];
+    unsigned int hash_len = 0;
+    if (EVP_DigestFinal_ex(md_ctx.get(), hash, &hash_len) != 1)
+    {
+        logger->error("finalize sha256 error");
+        disconnect();
+        return -1;
+    }
+
+    static const char* hex_digits = "0123456789abcdef";
+    string sha256;
+    sha256.reserve(static_cast<size_t>(hash_len) * 2);
+    for (unsigned int i = 0; i < hash_len; ++i)
+    {
+        sha256.push_back(hex_digits[hash[i] >> 4]);
+        sha256.push_back(hex_digits[hash[i] & 0x0F]);
+    }
+
+    if (sha256 != file_size_response.sha256)
+    {
+        logger->error("sha256 mismatch: expected {}, actual {}", file_size_response.sha256, sha256);
+
+        disconnect();
+        return -1;
+    }
 
     logger->info("download success: {}", file_path.string());
 

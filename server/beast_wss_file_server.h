@@ -41,13 +41,14 @@ struct FileRequest
     NLOHMANN_DEFINE_TYPE_INTRUSIVE(FileRequest, file_name);
 };
 
-struct FileSizeResponse
+struct FileResponse
 {
     int code;
     std::string file_name;
     size_t size;
+    std::string sha256;
 
-    NLOHMANN_DEFINE_TYPE_INTRUSIVE(FileSizeResponse, code, file_name, size);
+    NLOHMANN_DEFINE_TYPE_INTRUSIVE(FileResponse, code, file_name, size, sha256);
 };
 
 class WssFileServerSession : public std::enable_shared_from_this<WssFileServerSession>
@@ -68,7 +69,8 @@ private:
     void send_next_block(size_t file_size, size_t sent_size);
     void send_file_end();
     void session_close();
-    void async_write_response(FileSizeResponse response, std::function<void()> on_written);
+    bool compute_file_sha256(std::string& digest);
+    void async_write_response(FileResponse response, std::function<void()> on_written);
     void send_error_response_and_close(int code, const std::string& name, size_t size);
 
 public:

@@ -4,6 +4,8 @@
 #include <mutex>
 #include <filesystem>
 
+#include <openssl/evp.h>
+
 #include <boost/locale.hpp>
 #include <boost/beast/core.hpp>
 #include <spdlog/sinks/stdout_color_sinks.h>
@@ -169,10 +171,19 @@ void WssFileServerSession::send_file()
     size_t file_size = static_cast<size_t>(file_size_offset);
     file.seekg(0, file.beg);
 
-    FileSizeResponse response;
+    std::string sha256;
+    if (!compute_file_sha256(sha256))
+    {
+        logger->error("compute file sha256 error: {}", file_name);
+        session_close();
+        return;
+    }
+
+    FileResponse response;
     response.code = wss_file_server::FILE_SIZE_RESPONSE_CODE::OK;
     response.file_name = file_name;
     response.size = file_size;
+    response.sha256 = sha256;
     async_write_response(response, [self = shared_from_this(), file_size]() {
         self->ws.binary(true);
         self->send_next_block(file_size, 0);
@@ -250,7 +261,57 @@ void WssFileServerSession::session_close()
     });
 }
 
-void WssFileServerSession::async_write_response(FileSizeResponse response, std::function<void()> on_written)
+bool WssFileServerSession::compute_file_sha256(std::string& digest)
+{
+    std::unique_ptr<EVP_MD_CTX, decltype(&EVP_MD_CTX_free)> ctx(EVP_MD_CTX_new(), &EVP_MD_CTX_free);
+    if (!ctx || (EVP_DigestInit_ex(ctx.get(), EVP_sha256(), nullptr) != 1))
+    {
+        return false;
+    }
+
+    file.clear();
+    file.seekg(0, std::ios::beg);
+
+    bool ok = true;
+    while (ok && file)
+    {
+        file.read(file_buffer.data(), static_cast<std::streamsize>(file_buffer.size()));
+        const std::streamsize read_size = file.gcount();
+        if (read_size > 0)
+        {
+            ok = (EVP_DigestUpdate(ctx.get(), file_buffer.data(), static_cast<size_t>(read_size)) == 1);
+        }
+    }
+
+    // 复位文件流，供后续发送文件内容使用
+    file.clear();
+    file.seekg(0, std::ios::beg);
+
+    if (!ok)
+    {
+        return false;
+    }
+
+    unsigned char hash[EVP_MAX_MD_SIZE];
+    unsigned int hash_len = 0;
+    if (EVP_DigestFinal_ex(ctx.get(), hash, &hash_len) != 1)
+    {
+        return false;
+    }
+
+    static const char* hex_digits = "0123456789abcdef";
+    digest.clear();
+    digest.reserve(static_cast<size_t>(hash_len) * 2);
+    for (unsigned int i = 0; i < hash_len; ++i)
+    {
+        digest.push_back(hex_digits[hash[i] >> 4]);
+        digest.push_back(hex_digits[hash[i] & 0x0F]);
+    }
+
+    return true;
+}
+
+void WssFileServerSession::async_write_response(FileResponse response, std::function<void()> on_written)
 {
     json response_json = response;
     ws.next_layer().next_layer().expires_after(std::chrono::seconds(wss_file_server::NETWORK_TIMEOUT));
@@ -268,7 +329,7 @@ void WssFileServerSession::async_write_response(FileSizeResponse response, std::
 
 void WssFileServerSession::send_error_response_and_close(int code, const string& name, size_t size)
 {
-    FileSizeResponse response;
+    FileResponse response;
     response.code = code;
     response.file_name = name;
     response.size = size;
