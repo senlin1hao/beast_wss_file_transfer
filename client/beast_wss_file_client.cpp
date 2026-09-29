@@ -18,6 +18,7 @@ namespace ssl = boost::asio::ssl;
 using tcp = boost::asio::ip::tcp;
 using std::ofstream;
 using std::string;
+using std::string_view;
 using std::vector;
 using std::shared_ptr;
 using nlohmann::json;
